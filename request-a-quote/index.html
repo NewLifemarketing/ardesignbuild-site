@@ -99,17 +99,17 @@
         <button type="submit" class="btn btn--primary btn--lg">Send My Request</button>
         <p class="form-footnote">We reply within two business days. Your information is only used to respond to your
         request — see our <a href="/privacy-policy/">privacy policy</a>.</p>
-        <!-- PRODUCTION: wire to a form backend (e.g. Netlify Forms) that emails laura[at]arcarpentry.com and pushes to GoHighLevel; add spam protection -->
+        <!-- Submits via fetch() to a GoHighLevel Inbound Webhook (see src/js/main.js). -->
       </div>
     </div>
   </form>
   <div class="form-success" id="quote-form-success" role="status">
     <div class="form-success__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/></svg></div>
-    <h3>Almost done — just hit send.</h3>
-    <p>Your email app should have opened with your details ready to go. Give it a quick look and press
-    send, and we’ll reply within two business days.</p>
-    <p>Didn’t open? Email us at <a href="mailto:laura@arcarpentry.com">laura@arcarpentry.com</a> or call
-    <a href="tel:+17054364663">(705) 436-4663</a> — we’d love to hear about your project.</p>
+    <h3>Thanks — we’ve got your request.</h3>
+    <p>Your details are on their way to our team, and we’ll be in touch within two business days
+    to talk about your project.</p>
+    <p>Need us sooner? Email <a href="mailto:laura@arcarpentry.com">laura@arcarpentry.com</a> or call
+    <a href="tel:+17054364663">(705) 436-4663</a> — we’d love to hear from you.</p>
   </div>
 </div></div>
     <aside>

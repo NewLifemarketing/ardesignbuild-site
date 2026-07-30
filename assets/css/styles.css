@@ -431,6 +431,12 @@ a:hover { color: var(--maroon-dark); }
 .form-field.has-error input, .form-field.has-error select, .form-field.has-error textarea { border-color: #A11500; }
 .form-field.has-error .field-error { display: block; }
 .form-footnote { font-size: .85rem; color: var(--ink-mute); margin-top: 1rem; }
+.form-error {
+  background: #FCEBE8; border-left: 4px solid #A11500; color: #7A1000;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: .8rem 1.1rem; font-size: .9rem; margin: 0 0 1rem;
+}
+.form-error:empty { display: none; }
 .hp-field { position: absolute; left: -9999px; opacity: 0; height: 0; overflow: hidden; }
 
 .form-success {

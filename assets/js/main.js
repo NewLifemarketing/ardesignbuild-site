@@ -56,19 +56,67 @@
     if (plan) { planField.value = plan; }
   }
 
-  /* Quote form: validation + honeypot, then an honest EMAIL HAND-OFF.
-     GitHub Pages is static, so there's no server to receive a POST. On a valid
-     submit we open the visitor's mail app with their details pre-filled to
-     laura@arcarpentry.com — a real message, not a faked "received" state.
-     TO UPGRADE LATER: point form.action at a backend (Formspree / GoHighLevel)
-     and replace the mailto block with a fetch()/native submit. */
+  /* Quote form: validation + honeypot, then a background POST to GoHighLevel.
+     Our form's design is untouched — on a valid submit we send the fields as
+     JSON to a GHL Inbound Webhook (Automation → Workflows → Inbound Webhook
+     trigger). CORS is open on that endpoint, so this works straight from the
+     static site with no server. On success we show our own success panel and
+     reset the form; on failure we show an error with a fallback phone/email
+     and log the details to the console.
+     TO POINT AT A DIFFERENT GHL WEBHOOK: change GHL_WEBHOOK_URL below. */
+  var GHL_WEBHOOK_URL = "https://services.leadconnectorhq.com/hooks/Dbqs3kRYC9G6e0THoG6c/webhook-trigger/13e71e95-de35-4209-984d-13f5b7e2a3a3";
   var LEADS_EMAIL = "laura@arcarpentry.com";
-  var FIELD_LABELS = {
-    name: "Name", first_name: "First name", last_name: "Last name", email: "Email",
-    phone: "Phone", town: "Location / Town", build_type: "Build type",
-    plan: "Plan of interest", lot_status: "Lot status", timeline: "Timeline",
-    budget: "Budget range", message: "Message"
+  var LEADS_PHONE = "(705) 436-4663";
+
+  /* Map our form field names -> the JSON keys sent to GoHighLevel.
+     (Map these keys to contact fields inside the GHL workflow.) */
+  var GHL_KEYS = {
+    email: "email", phone: "phone", town: "city", build_type: "build_type",
+    plan: "plan_of_interest", lot_status: "lot_status", timeline: "timeline",
+    budget: "budget_range", message: "message"
   };
+
+  function buildPayload(form) {
+    var payload = {};
+    form.querySelectorAll("input, select, textarea").forEach(function (el) {
+      if (!el.name || el.name === "company_website") { return; }
+      var val = (el.value || "").trim();
+      if (!val) { return; }
+      if (el.name === "name") {
+        payload.full_name = val;
+        var parts = val.split(/\s+/);
+        payload.first_name = parts.shift();
+        payload.last_name = parts.join(" ");
+      } else if (GHL_KEYS[el.name]) {
+        payload[GHL_KEYS[el.name]] = val;
+      } else {
+        payload[el.name] = val;
+      }
+    });
+    /* Provenance so the team can see where each lead came from */
+    var planEl = form.querySelector("[name='plan']");
+    payload.source = form.id === "download-form"
+      ? "A&R Website — Plan Catalogue Request"
+      : (planEl && planEl.value ? "A&R Website — Quote Request (" + planEl.value + ")"
+                                : "A&R Website — Request a Quote");
+    payload.form_name = form.id || "quote-form";
+    payload.page_url = window.location.href;
+    payload.submitted_at = new Date().toISOString();
+    return payload;
+  }
+
+  function showError(form, msg) {
+    var box = form.querySelector(".form-error");
+    if (!box) {
+      box = document.createElement("p");
+      box.className = "form-error";
+      box.setAttribute("role", "alert");
+      var btn = form.querySelector("button[type='submit']");
+      (btn && btn.parentNode ? btn.parentNode : form).insertBefore(box, btn || null);
+    }
+    box.textContent = msg;
+  }
+
   document.querySelectorAll("form[data-quote-form]").forEach(function (form) {
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
@@ -90,30 +138,33 @@
         return;
       }
 
-      /* Build a pre-filled email from the form fields */
-      var lines = [];
-      form.querySelectorAll("input, select, textarea").forEach(function (el) {
-        if (!el.name || el.name === "company_website" || !el.value) { return; }
-        lines.push((FIELD_LABELS[el.name] || el.name) + ": " + el.value);
-      });
-      var planEl = form.querySelector("[name='plan']");
-      var subject = form.id === "download-form"
-        ? "Plan catalogue request — A&R Design Build"
-        : (planEl && planEl.value ? "Quote request: " + planEl.value
-                                  : "Website enquiry — A&R Design Build");
-      var mailto = "mailto:" + LEADS_EMAIL +
-        "?subject=" + encodeURIComponent(subject) +
-        "&body=" + encodeURIComponent(lines.join("\n"));
-      window.location.href = mailto;
+      var btn = form.querySelector("button[type='submit']");
+      var btnText = btn ? btn.textContent : "";
+      if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+      var errBox = form.querySelector(".form-error");
+      if (errBox) { errBox.textContent = ""; }
 
-      /* Honest confirmation state */
-      form.hidden = true;
-      var success = document.getElementById(form.getAttribute("data-success"));
-      if (success) {
-        success.classList.add("is-visible");
-        success.setAttribute("tabindex", "-1");
-        success.focus();
-      }
+      fetch(GHL_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload(form))
+      }).then(function (res) {
+        if (!res.ok) { throw new Error("GHL webhook responded " + res.status); }
+        /* Success — show our own confirmation panel and reset the form */
+        form.reset();
+        form.hidden = true;
+        var success = document.getElementById(form.getAttribute("data-success"));
+        if (success) {
+          success.classList.add("is-visible");
+          success.setAttribute("tabindex", "-1");
+          success.focus();
+        }
+      }).catch(function (err) {
+        console.error("Quote form → GoHighLevel submission failed:", err);
+        if (btn) { btn.disabled = false; btn.textContent = btnText; }
+        showError(form, "Sorry — something went wrong sending your request. Please try again, " +
+          "or reach us directly at " + LEADS_PHONE + " or " + LEADS_EMAIL + ".");
+      });
     });
 
     form.querySelectorAll("input, select, textarea").forEach(function (input) {
