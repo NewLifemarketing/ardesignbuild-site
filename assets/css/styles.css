@@ -193,6 +193,20 @@ a:hover { color: var(--maroon-dark); }
 }
 .hero__art { position: absolute; inset: 0; opacity: .5; pointer-events: none; }
 .hero__art svg { width: 100%; height: 100%; object-fit: cover; }
+/* Video hero (home): show the footage at full strength, keep text legible with a scrim */
+.hero__art-base, .hero__video {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.hero--video .hero__art { opacity: 1; }
+.hero__scrim {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background:
+    linear-gradient(103deg, rgba(24,7,2,.74) 0%, rgba(24,7,2,.45) 46%, rgba(24,7,2,.12) 100%),
+    linear-gradient(to top, rgba(24,7,2,.55), rgba(24,7,2,0) 42%);
+}
+.hero .wrap { position: relative; z-index: 2; }
+/* Respect reduced-motion + no-video: fall back to the still poster image */
+@media (prefers-reduced-motion: reduce) { .hero--video .hero__video { display: none; } }
 .hero__inner {
   position: relative;
   padding: clamp(4.5rem, 11vw, 8.5rem) 0 clamp(4rem, 9vw, 7rem);
