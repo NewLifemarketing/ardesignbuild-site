@@ -661,3 +661,13 @@ a:hover { color: var(--maroon-dark); }
 }
 .topbar a:hover, .topbar a[aria-current="page"] { color: var(--maroon); }
 @media (max-width: 960px) { .topbar__inner { gap: 1.75rem; min-height: 34px; } }
+
+/* ---------- /sitemap/ : the full page index ---------- */
+/* Single column, bulleted, child pages nested one level in. */
+.sitemap-list, .sitemap-list ul { list-style: disc; display: block; }
+.sitemap-list { padding-left: 1.35rem; margin: 0; }
+.sitemap-list ul { padding-left: 1.6rem; margin: .45rem 0 .6rem; }
+.sitemap-list li { margin: 0 0 .45rem; font-size: .95rem; line-height: 1.5; }
+.sitemap-list li::marker { color: var(--maroon); }
+.sitemap-list a { color: var(--maroon); text-decoration: none; }
+.sitemap-list a:hover { text-decoration: underline; }
