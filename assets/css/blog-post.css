@@ -1,0 +1,38 @@
+/* Additive blog-post styles for A&R Design Build.
+   Colours reference the site's own token var(--maroon) so posts can never
+   drift from the palette in assets/css/styles.css. */
+.post-body{max-width:48rem}
+.post-figure{margin:1.75rem 0}
+.post-figure img{width:100%;height:auto;border-radius:var(--radius,10px);display:block}
+.post-figure figcaption{margin-top:.5rem;font-size:.9rem;color:#666;font-style:italic}
+.post-figure--hero{margin-top:.5rem}
+.post-body h2,.post-body h3{scroll-margin-top:96px} /* clears the sticky ~77px header */
+/* Byline — initials monogram (A&R has no team photos); title + date on separate lines */
+.post-meta-byline{display:flex;align-items:center;gap:.75rem;margin:0 0 1.75rem}
+.post-meta-byline .avatar{width:52px;height:52px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--maroon,#6F1200);color:#fff;font-family:Oswald,sans-serif;font-weight:600;font-size:1.05rem;letter-spacing:.02em}
+.post-meta-byline .byl-name{font-weight:700;line-height:1.2}
+.post-meta-byline .byl-title{color:#666;font-size:.9rem;line-height:1.3}
+.post-meta-byline .byl-date{color:#666;font-size:.85rem}
+/* We'll cover TOC */
+.post-toc{background:var(--maroon-tint,#FBF3F1);border-left:4px solid var(--maroon,#6F1200);border-radius:8px;padding:1rem 1.25rem;margin:0 0 1.75rem}
+.post-toc-label{font-weight:700;margin:0 0 .5rem}
+.post-toc ul{margin:0;padding-left:1.1rem}.post-toc li{margin:.3rem 0}
+.post-toc a{color:#1a1a1a;text-decoration:none}.post-toc a:hover{color:var(--maroon,#6F1200);text-decoration:underline}
+/* Related Resources aside */
+.post-resources{background:#fff;border:1px solid var(--line,#e2ddd6);border-radius:10px;padding:1.1rem 1.25rem;margin:0 0 1.5rem}
+.post-resources h2{font-size:1rem;margin:0 0 .6rem;text-transform:uppercase;letter-spacing:.04em}
+.post-resources ul{margin:0;padding-left:1.1rem}.post-resources li{margin:.35rem 0}
+.post-resources a{color:#1a1a1a}.post-resources a:hover{color:var(--maroon,#6F1200)}
+@media(min-width:800px){.post-resources{float:right;width:270px;margin:.25rem 0 1.25rem 1.75rem}}
+/* FAQ accordion */
+.faq-list{margin:1rem 0}
+.faq-item{border:1px solid var(--line,#e2ddd6);border-radius:8px;margin:.6rem 0;padding:.25rem .9rem}
+.faq-item summary{cursor:pointer;font-weight:600;padding:.6rem 0;list-style:none}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-a{padding:0 0 .6rem}
+/* Prev/next nav — next (newer) left, prev (older) right */
+.post-nav{display:flex;justify-content:space-between;gap:1rem;margin:2.5rem 0 0;border-top:1px solid var(--line,#e2ddd6);padding:1.5rem 0}
+.post-nav a,.post-nav span{display:inline-flex;align-items:center;gap:.4rem;max-width:48%;padding:.65rem .95rem;border:1px solid var(--maroon,#6F1200);border-radius:8px;color:var(--maroon,#6F1200);text-decoration:none;font-weight:600;font-size:.9rem}
+.post-nav a:hover{background:var(--maroon,#6F1200);color:#fff}
+.post-nav .nav-prev{margin-left:auto;text-align:right}
+.post-nav .is-disabled{border-color:#ccc;color:#aaa}
