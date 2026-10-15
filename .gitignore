@@ -1,0 +1,6 @@
+
+# Agent scratch. A stray file here blocked three days of blog posts on
+# another site: the clean-checkout guard refuses a dirty tree, correctly,
+# and untracked scratch is indistinguishable from work somebody cares about.
+.claude/
+.scratch/
