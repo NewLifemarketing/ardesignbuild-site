@@ -68,6 +68,29 @@
   var LEADS_EMAIL = "laura@arcarpentry.com";
   var LEADS_PHONE = "(705) 436-4663";
 
+  /* SPAM GATEWAY.
+     Submissions no longer go straight to GoHighLevel. They go to a Cloudflare
+     Worker that verifies a Cloudflare Turnstile token, re-checks the honeypot
+     and applies a per-IP rate limit on the SERVER, then forwards the same JSON
+     to the lead address -- which is now a Worker secret rather than a string in
+     this public file.
+
+     Why: the honeypot below is checked in the visitor's own browser, and the
+     old address was readable by anyone. A bot could post to it directly and
+     skip the page entirely, which is what was happening.
+
+     Worker source: NewLifemarketing/arcarpentry-forms-worker
+     The site key is public by design; the secret key never leaves Cloudflare. */
+  var FORM_ENDPOINT = "https://arcarpentry-forms.tight-block-c812.workers.dev";
+  var TURNSTILE_SITE_KEY = "0x4AAAAAAGVtluZ4hDRtWSLY";
+  var TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js" +
+    "?onload=arQuoteTurnstileReady&render=explicit";
+  /* An ad blocker can stop the Turnstile script loading. Rather than fail
+     silently we fall back to the same error panel the fetch failure uses, so a
+     real person always has Laura's phone number in front of them. */
+  var TURNSTILE_TIMEOUT_MS = 12000;
+  var TOKEN_WAIT_MS = 10000;
+
   /* Map our form field names -> the JSON keys sent to GoHighLevel.
      (Map these keys to contact fields inside the GHL workflow.) */
   var GHL_KEYS = {
@@ -117,11 +140,80 @@
     box.textContent = msg;
   }
 
+  /* ---- Turnstile bootstrap -------------------------------------------- */
+
+  var tsForms = [];            /* every quote form on this page */
+  var tsState = "loading";     /* loading | ready | failed */
+
+  /* Cloudflare calls this by name once its script is parsed. */
+  window.arQuoteTurnstileReady = function () {
+    tsState = "ready";
+    tsForms.forEach(renderWidget);
+  };
+
+  function renderWidget(form) {
+    if (form.__tsWidget !== undefined || !window.turnstile) { return; }
+    var holder = document.createElement("div");
+    holder.className = "turnstile-holder";
+    holder.style.margin = "0.75rem 0";
+    var btn = form.querySelector("button[type='submit']");
+    (btn && btn.parentNode ? btn.parentNode : form).insertBefore(holder, btn || null);
+    form.__tsWidget = window.turnstile.render(holder, {
+      sitekey: TURNSTILE_SITE_KEY,
+      /* Managed mode: invisible for almost everyone, a small checkbox for a
+         visitor who looks suspicious. */
+      callback: function (token) { form.__tsToken = token; },
+      "expired-callback": function () {
+        form.__tsToken = null;
+        if (form.__tsWidget !== undefined) { window.turnstile.reset(form.__tsWidget); }
+      },
+      /* A widget-level failure (domain not allowed, network, challenge
+         error) must not make the visitor wait out TOKEN_WAIT_MS before they
+         are shown the phone number. Flag it and let withToken bail at once. */
+      "error-callback": function () { form.__tsToken = null; form.__tsError = true; }
+    });
+  }
+
+  /* A token may not exist the instant somebody hits Submit, so wait briefly
+     for the callback rather than refusing a real person. */
+  function withToken(form, cb) {
+    /* A token already in hand wins: an earlier widget error does not matter
+       once Turnstile has actually answered. */
+    if (form.__tsToken) { cb(form.__tsToken); return; }
+    if (tsState === "failed" || form.__tsError || !window.turnstile) { cb(null); return; }
+    var waited = 0;
+    var iv = setInterval(function () {
+      if (form.__tsToken) { clearInterval(iv); cb(form.__tsToken); return; }
+      waited += 250;
+      if (waited >= TOKEN_WAIT_MS || tsState === "failed" || form.__tsError) {
+        clearInterval(iv); cb(null);
+      }
+    }, 250);
+  }
+
+  if (document.querySelector("form[data-quote-form]")) {
+    var tsScript = document.createElement("script");
+    tsScript.src = TURNSTILE_SRC;
+    tsScript.async = true;
+    tsScript.defer = true;
+    tsScript.onerror = function () { tsState = "failed"; };
+    document.head.appendChild(tsScript);
+    setTimeout(function () { if (tsState === "loading") { tsState = "failed"; } },
+      TURNSTILE_TIMEOUT_MS);
+  }
+
+  /* ---- the forms ------------------------------------------------------- */
+
   document.querySelectorAll("form[data-quote-form]").forEach(function (form) {
+    tsForms.push(form);
+    if (tsState === "ready") { renderWidget(form); }
+
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
 
-      /* Honeypot: silently drop bot submissions */
+      /* Honeypot: still checked here so an obvious bot never costs a request.
+         It is ALSO re-checked by the Worker, because this check can be skipped
+         by anything that does not run our JavaScript. */
       var hp = form.querySelector("[name='company_website']");
       if (hp && hp.value) { return; }
 
@@ -144,26 +236,49 @@
       var errBox = form.querySelector(".form-error");
       if (errBox) { errBox.textContent = ""; }
 
-      fetch(GHL_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload(form))
-      }).then(function (res) {
-        if (!res.ok) { throw new Error("GHL webhook responded " + res.status); }
-        /* Success — show our own confirmation panel and reset the form */
-        form.reset();
-        form.hidden = true;
-        var success = document.getElementById(form.getAttribute("data-success"));
-        if (success) {
-          success.classList.add("is-visible");
-          success.setAttribute("tabindex", "-1");
-          success.focus();
-        }
-      }).catch(function (err) {
-        console.error("Quote form → GoHighLevel submission failed:", err);
+      function fail(msg) {
         if (btn) { btn.disabled = false; btn.textContent = btnText; }
-        showError(form, "Sorry — something went wrong sending your request. Please try again, " +
-          "or reach us directly at " + LEADS_PHONE + " or " + LEADS_EMAIL + ".");
+        if (form.__tsWidget !== undefined && window.turnstile) {
+          form.__tsToken = null;
+          form.__tsError = false;
+          window.turnstile.reset(form.__tsWidget);
+        }
+        showError(form, msg || ("Sorry — something went wrong sending your request. Please try again, " +
+          "or reach us directly at " + LEADS_PHONE + " or " + LEADS_EMAIL + "."));
+      }
+
+      withToken(form, function (token) {
+        if (!token) {
+          console.error("Quote form → Turnstile unavailable (blocked or timed out)");
+          fail();
+          return;
+        }
+
+        /* buildPayload is UNCHANGED: the CRM maps those exact keys. The token
+           and the honeypot ride alongside it and the Worker strips both before
+           forwarding, so GoHighLevel receives precisely what it receives now. */
+        var body = buildPayload(form);
+        body.cf_turnstile_token = token;
+        body.company_website = hp ? (hp.value || "") : "";
+
+        fetch(FORM_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        }).then(function (res) {
+          if (!res.ok) { throw new Error("Form gateway responded " + res.status); }
+          form.reset();
+          form.hidden = true;
+          var success = document.getElementById(form.getAttribute("data-success"));
+          if (success) {
+            success.classList.add("is-visible");
+            success.setAttribute("tabindex", "-1");
+            success.focus();
+          }
+        }).catch(function (err) {
+          console.error("Quote form → submission failed:", err);
+          fail();
+        });
       });
     });
 
@@ -174,4 +289,5 @@
       });
     });
   });
+
 })();
